@@ -1,0 +1,90 @@
+---
+title: "Caso 4"
+output:
+  html_document: default
+  pdf_document: default
+date: "2024-07-13"
+---
+
+```{r setup, include=FALSE}
+library(rio)
+library(tidyverse)
+library(DT)
+library(lubridate)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+df <- import("base_polizas.csv")
+```
+
+#Cumpliendo las caracteristicas 
+
+Con las restricciones que me dan:
+Con el id_poliza, transformamos los negativos a positivos.
+Con nombre_cliente el NA en No identificado.
+En fecha_inicio y fecha_fin se tiene que cumplir el formato de %Y-%M-%D.
+En estado el NA en No identificados.
+
+
+```{r , include=FALSE}
+df <- df %>%
+  mutate(
+    fecha_inicio = parse_date_time(fecha_inicio, orders = c("dmy", "ymd")),
+    fecha_fin = parse_date_time(fecha_fin, orders = c("dmy", "ymd"))
+  )
+
+
+df <- df %>%
+  mutate(
+    id_poliza = abs(id_poliza),
+    estado = case_when(
+      estado %in% c("Activa", "Cancelada", "Expirada") ~ estado,
+      TRUE ~ "No identificado"
+    ),
+    nombre_cliente = ifelse(is.na(nombre_cliente), "No identificado", nombre_cliente ),
+    monto_cobertura = ifelse(is.na(monto_cobertura), -1, monto_cobertura)
+  )
+datatable(df, options = list(scrollX = TRUE)) 
+```
+
+#Incongruencia de fechas
+
+Nos damos cuenta que algunas fechas tienen incongruencias, pues la fecha de inicio es mayor a la fecha de fin. Para eso usaremos el siguiente codigo que hara que las que cumplan esa condicion cambien de posicion.
+
+```{r , echo=FALSE}
+df <- df %>%
+  rowwise() %>%
+  mutate(
+    temp_inicio = if_else(fecha_inicio > fecha_fin, fecha_fin, fecha_inicio),
+    temp_fin = if_else(fecha_inicio > fecha_fin, fecha_inicio, fecha_fin)
+  ) %>%
+  ungroup() %>%
+  select(-fecha_inicio, -fecha_fin) %>%
+  rename(fecha_inicio = temp_inicio, fecha_fin = temp_fin)
+
+datatable(df, options = list(scrollX = TRUE)) 
+```
+
+#Se crea la variable para hallar la antiguedad de la poliza en a;os.
+
+Para hallar la antiguedad se usara difftime.
+
+```{r, echo=FALSE}
+df <- df %>%
+  mutate(
+    antiguedad = as.numeric(difftime(fecha_fin, fecha_inicio, units = "days")) %/% 365
+  )
+
+datatable(df, options = list(scrollX = TRUE)) 
+```
+
+#Se filtra las polizas activas
+
+```{r, echo=FALSE}
+
+polizas_activas <- df %>%
+  filter(estado == "Activa")
+
+datatable(polizas_activas, options = list(scrollX = TRUE)) 
+```

@@ -1,0 +1,95 @@
+---
+title: "Caso 8"
+output: html_document
+date: "2024-07-13"
+---
+
+```{r setup, include=FALSE}
+library(rio)
+library(tidyverse)
+library(DT)
+library(lubridate)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r , include=FALSE}
+df <- import("base_transacciones.csv")
+```
+
+
+#Cumpliendo las caracteristicas 
+
+Con las restricciones que me dan:
+Con el id_transaccion, transformamos los negativos a positivos.
+Con el id_cliente, transformamos los negativos a positivos.
+Monto de transaccion valores podibles son decimales.
+Con nombre_cliente el NA en No identificado.
+En fecha_transaccion se tiene que cumplir el formato de %Y-%M-%D.
+En estado_transaccion el NA en No identificado, ademas solo puede tener los valores posibles de 'Completada','Pendiente' y 'Fallida'.
+
+
+```{r, echo=FALSE}
+df <- df %>%
+  mutate(
+    fecha_transaccion = parse_date_time(fecha_transaccion, orders = c("dmy", "ymd"))
+  )
+
+
+df <- df %>%
+  mutate(
+    id_transaccion = abs(id_transaccion),
+    id_cliente = abs(id_cliente),
+    estado_transaccion = case_when(
+      estado_transaccion %in% c("Completada", "Pendiente", "Fallida") ~ estado_transaccion,
+      TRUE ~ "No identificado"
+    ),
+     tipo_transaccion = case_when(
+      tipo_transaccion %in% c("Depósito", "Retiro", "Transferencia") ~ tipo_transaccion,
+      TRUE ~ "No identificado"
+    ),
+    monto = ifelse(is.na(monto), -1, monto)
+  )
+datatable(df, options = list(scrollX = TRUE)) 
+```
+
+#Filtrando las transacciones completadas
+
+Filtraremos las transacciones de la columna estado_transaccion cuyo calor sea 'Completada'
+
+```{r , echo=FALSE}
+Transacciones_Completadas <- df %>%
+  filter(estado_transaccion  == "Completada")
+datatable(Transacciones_Completadas, options = list(scrollX = TRUE)) 
+```
+
+
+#Transacciones anormalmente altas
+
+Hallare la media de los montos, filtrando a las filas que el valor del monto sea de -1.
+```{r, echo=FALSE}
+montos_validos <- Transacciones_Completadas %>%
+  filter(monto != -1) %>%
+  pull(monto)
+
+mean_monto <- mean(montos_validos, na.rm = TRUE)
+
+Transacciones_Completadas<- Transacciones_Completadas%>%
+  mutate(media_monto = mean_monto)
+
+Transacciones_altas<- Transacciones_Completadas %>%
+  filter(monto > mean_monto)
+
+datatable(Transacciones_altas, options = list(scrollX = TRUE)) 
+```
+
+#Filtrando las transacciones con monto alto 
+
+Se creara la tabla de Transacciones anormalmente altas.
+```{r, echo=FALSE}
+
+Transacciones_altas<- Transacciones_Completadas %>%
+  filter(monto > mean_monto)
+datatable(Transacciones_altas, options = list(scrollX = TRUE)) 
+```
+
+

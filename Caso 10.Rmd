@@ -1,0 +1,64 @@
+---
+title: "Caso 10"
+output: html_document
+date: "2024-07-13"
+---
+
+```{r setup, include=FALSE}
+library(rio)
+library(DT)
+library(tidyverse)
+library(lubridate)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+df <- import("base_registros_medicos.csv")
+```
+
+
+#Cumpliendo las caracteristicas 
+
+Con las restricciones que me dan:
+Con el id_registro, transformamos los negativos a positivos.
+Con el id_paciente, transformamos los negativos a positivos.
+En fecha_admision se tiene que cumplir el formato de %Y-%M-%D.
+En fecha_admision se tiene que cumplir el formato de %Y-%M-%D.
+En Costo son valores decimales.
+En estado el NA en No identificado, ademas solo puede tener los valores posibles de 'Alta','Hospitalizado' y 'Fallecido'.
+
+
+```{r, include=FALSE}
+df <- df %>%
+  mutate(
+    fecha_admision = parse_date_time(fecha_admision, orders = c("dmy", "ymd")),
+    fecha_alta = parse_date_time(fecha_alta, orders = c("dmy", "ymd"))
+  )
+
+
+df <- df %>%
+  mutate(
+    id_registro = abs(id_registro),
+    id_paciente = abs(id_paciente),
+    estado= case_when(
+      estado %in% c("Alta", "Hospitalizado", "Fallecido") ~ estado,
+      TRUE ~ "No identificado"
+    ),
+    diagnostico= ifelse(is.na(diagnostico), "No Identificado", diagnostico),
+    costo = ifelse(is.na(costo), -1, costo)
+  )
+datatable(df, options = list(scrollX = TRUE)) 
+```
+
+#Filtrando los pacientes dados de alta
+
+Filtraremos los estados de la columna estado cuyo calor sea 'Alta'
+
+```{r , echo=FALSE}
+Pacientes_Alta <- df %>%
+  filter(estado  == "Alta")
+datatable(Pacientes_Alta, options = list(scrollX = TRUE)) 
+```
+
+
+
